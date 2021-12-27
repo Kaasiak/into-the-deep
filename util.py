@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 def plot_linear_boundary(X_train, Y_train, X_test, Y_test, w, b):
     x_min = min(X_train[:, 0])
@@ -24,3 +25,13 @@ def plot_linear_boundary(X_train, Y_train, X_test, Y_test, w, b):
     ax[1].legend()
 
     plt.show()
+
+def compute_batch_accuracy(model, data_loader, num_features):
+    correct, num_examples = 0, 0
+    for features, target in data_loader:
+        features = features.view(-1, num_features)
+        _, probas = model(features)
+        _, predicted = torch.max(probas, dim=1)
+        num_examples += target.shape[0]
+        correct += sum(predicted == target)
+    return correct.float() / num_examples * 100
