@@ -26,12 +26,13 @@ def plot_linear_boundary(X_train, Y_train, X_test, Y_test, w, b):
 
     plt.show()
 
-def compute_batch_accuracy(model, data_loader, num_features):
+def compute_batch_accuracy(model, data_loader):
     correct, num_examples = 0, 0
-    for features, target in data_loader:
-        features = features.view(-1, num_features)
-        _, probas = model(features)
-        _, predicted = torch.max(probas, dim=1)
-        num_examples += target.shape[0]
-        correct += sum(predicted == target)
-    return correct.float() / num_examples * 100
+    with torch.no_grad():
+        for features, target in data_loader:
+            logits = model(features)
+            _, predicted = torch.max(logits, dim=1)
+            num_examples += target.shape[0]
+            correct += sum(predicted == target)
+    acc = correct.float() / num_examples * 100
+    return acc.numpy()[0]
