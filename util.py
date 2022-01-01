@@ -5,6 +5,10 @@ from torch.utils.data import DataLoader
 import torch
 import time
 
+########################
+### VISUALTISATION
+########################
+
 def plot_linear_boundary(X_train, Y_train, X_test, Y_test, w, b):
     x_min = min(X_train[:, 0])
     x_max = min(X_train[:, 1])
@@ -29,6 +33,30 @@ def plot_linear_boundary(X_train, Y_train, X_test, Y_test, w, b):
 
     plt.show()
 
+def plot_accuracy(train_acc, valid_acc):
+    fig, ax = plt.subplots()
+    ax.plot(train_acc, label="train")
+    ax.plot(valid_acc, label="valid")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Accuracy")
+    ax.legend()
+    plt.show()
+
+def plot_training_loss(loss, window_size=100):
+    fig, ax = plt.subplots()
+    mean_loss = np.convolve(loss, np.ones(window_size)/window_size, mode='valid')
+    ax.plot(loss, label="Minibatch loss")
+    ax.plot(mean_loss, label="Moving Average")
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Loss")
+    ax.legend()
+    plt.show()
+
+
+########################
+### EVALUATION
+########################
+
 def compute_batch_accuracy(model, data_loader):
     correct, num_examples = 0, 0
     with torch.no_grad():
@@ -39,6 +67,11 @@ def compute_batch_accuracy(model, data_loader):
             correct += sum(predicted == target)
     acc = correct.float() / num_examples * 100
     return acc
+
+
+########################
+### DATA PROCESSING
+########################
 
 def get_MNIST_loaders(batch_size, transform):
     train = torchvision.datasets.MNIST(
@@ -74,15 +107,57 @@ def get_MNIST_loaders(batch_size, transform):
     )
     return train_loader, valid_loader, test_loader
 
+def get_CIFAR10_loaders(batch_size, test_transform, train_transform, **args):
+    train = torchvision.datasets.CIFAR10(
+        root='data',
+        transform=train_transform, 
+        download=True
+    )
 
-def train_model(model, optimizer, scheduler, loss_fn, 
-    train_loader, valid_loader, test_loader, num_epochs, batch_size):
+    train, valid = torch.utils.data.random_split(train, [40000, 10000])
+
+    test = torchvision.datasets.CIFAR10(
+        root='data', 
+        transform=test_transform, 
+        train=False
+    )
+
+    train_loader = DataLoader(
+        train,
+        batch_size=batch_size,
+        shuffle=True,
+        **args
+    )
+
+    valid_loader = DataLoader(
+        valid,
+        batch_size=batch_size,
+        shuffle=True,
+        **args,
+    )
+
+    test_loader = DataLoader(
+        test,
+        batch_size=batch_size,
+        shuffle=False,
+        **args
+    )
+    return train_loader, valid_loader, test_loader
+
+########################
+### TRAINING
+########################
+
+def train_model(model, optimizer, loss_fn, train_loader, valid_loader, 
+    test_loader, num_epochs, batch_size, scheduler=None):
 
     train_acc_ls, valid_acc_ls, mini_batch_loss_ls = [], [], []
 
     start_time = time.time()
     for epoch in range(num_epochs):
         for batch_idx, (features, target) in enumerate(train_loader):
+
+            print(time.time() - start_time)
 
             # FORWARD
             logits = model(features)
@@ -113,8 +188,9 @@ def train_model(model, optimizer, scheduler, loss_fn,
         train_acc_ls.append(train_acc)
         valid_acc_ls.append(valid_acc)
 
-        # ADJUST LEARNING RATE
-        scheduler.step(valid_acc_ls[-1])
+        if scheduler is not None:
+            # ADJUST LEARNING RATE
+            scheduler.step(valid_acc_ls[-1])
 
     print("-------------------------------")
 
@@ -126,22 +202,3 @@ def train_model(model, optimizer, scheduler, loss_fn,
     print(f'Test accuracy {test_acc :.2f}%')
 
     return mini_batch_loss_ls, train_acc_ls, valid_acc_ls
-
-def plot_accuracy(train_acc, valid_acc):
-    fig, ax = plt.subplots()
-    ax.plot(train_acc, label="train")
-    ax.plot(valid_acc, label="valid")
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Accuracy")
-    ax.legend()
-    plt.show()
-
-def plot_training_loss(loss, window_size=100):
-    fig, ax = plt.subplots()
-    mean_loss = np.convolve(loss, np.ones(window_size)/window_size, mode='valid')
-    ax.plot(loss, label="Minibatch loss")
-    ax.plot(mean_loss, label="Moving Average")
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("Loss")
-    ax.legend()
-    plt.show()
