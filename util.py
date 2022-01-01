@@ -57,10 +57,12 @@ def plot_training_loss(loss, window_size=100):
 ### EVALUATION
 ########################
 
-def compute_batch_accuracy(model, data_loader):
+def compute_batch_accuracy(model, data_loader, device):
     correct, num_examples = 0, 0
     with torch.no_grad():
         for features, target in data_loader:
+            features = features.to(device)
+            target = target.to(device)
             logits = model(features)
             _, predicted = torch.max(logits, dim=1)
             num_examples += target.shape[0]
@@ -149,7 +151,7 @@ def get_CIFAR10_loaders(batch_size, test_transform, train_transform, **args):
 ########################
 
 def train_model(model, optimizer, loss_fn, train_loader, valid_loader, 
-    test_loader, num_epochs, batch_size, scheduler=None):
+    test_loader, num_epochs, batch_size, device, scheduler=None):
 
     train_acc_ls, valid_acc_ls, mini_batch_loss_ls = [], [], []
 
@@ -157,7 +159,8 @@ def train_model(model, optimizer, loss_fn, train_loader, valid_loader,
     for epoch in range(num_epochs):
         for batch_idx, (features, target) in enumerate(train_loader):
 
-            print(time.time() - start_time)
+            features = features.to(device)
+            target = target.to(device)
 
             # FORWARD
             logits = model(features)
@@ -180,8 +183,8 @@ def train_model(model, optimizer, loss_fn, train_loader, valid_loader,
         elapsed = (time.time() - start_time)/60
         print(f'Time elapsed: {elapsed:.2f} min')
 
-        train_acc = compute_batch_accuracy(model, train_loader)
-        valid_acc = compute_batch_accuracy(model, valid_loader)
+        train_acc = compute_batch_accuracy(model, train_loader, device)
+        valid_acc = compute_batch_accuracy(model, valid_loader, device)
         print('Epoch: %03d/%03d Train: %.2f%% | Validation: %.2f%%' % (
             epoch + 1, num_epochs, train_acc, valid_acc
         ))
@@ -198,7 +201,7 @@ def train_model(model, optimizer, loss_fn, train_loader, valid_loader,
     elapsed = (time.time() - start_time)/60
     print(f'Total Training Time: {elapsed:.2f} min')
 
-    test_acc = compute_batch_accuracy(model, test_loader)
+    test_acc = compute_batch_accuracy(model, test_loader, device)
     print(f'Test accuracy {test_acc :.2f}%')
 
     return mini_batch_loss_ls, train_acc_ls, valid_acc_ls
